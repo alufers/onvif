@@ -265,11 +265,22 @@ func (dev Device) CallMethod(method interface{}) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	return dev.callMethodDo(endpoint, method)
+	return dev.callMethodDo(endpoint, method, nil)
+}
+
+func (dev Device) CallMethodWithWsaTo(method interface{}, wsaTo string) (*http.Response, error) {
+	pkgPath := strings.Split(reflect.TypeOf(method).PkgPath(), "/")
+	pkg := strings.ToLower(pkgPath[len(pkgPath)-1])
+
+	endpoint, err := dev.getEndpoint(pkg)
+	if err != nil {
+		return nil, err
+	}
+	return dev.callMethodDo(endpoint, method, &wsaTo)
 }
 
 // CallMethod functions call an method, defined <method> struct with authentication data
-func (dev Device) callMethodDo(endpoint string, method interface{}) (*http.Response, error) {
+func (dev Device) callMethodDo(endpoint string, method interface{}, wsaTo *string) (*http.Response, error) {
 	output, err := xml.MarshalIndent(method, "  ", "    ")
 	if err != nil {
 		return nil, err
@@ -286,6 +297,13 @@ func (dev Device) callMethodDo(endpoint string, method interface{}) (*http.Respo
 	//Auth Handling
 	if dev.params.Username != "" && dev.params.Password != "" {
 		soap.AddWSSecurity(dev.params.Username, dev.params.Password)
+	}
+
+	if wsaTo != nil {
+		wsaToElement := etree.NewElement("wsa:To")
+		wsaToElement.CreateAttr("s:mustUnderstand", "1")
+		wsaToElement.CreateText(*wsaTo)
+		soap.AddHeaderContent(wsaToElement)
 	}
 
 	return networking.SendSoap(dev.params.HttpClient, endpoint, soap.String())

@@ -13,7 +13,7 @@ import (
 )
 
 // Call_PullMessages forwards the call to dev.CallMethod() then parses the payload of the reply as a PullMessagesResponse.
-func Call_PullMessages(ctx context.Context, dev *onvif.Device, request event.PullMessages) (event.PullMessagesResponse, error) {
+func Call_PullMessages(ctx context.Context, dev *onvif.Device, request event.PullMessages, subscriptionReference string) (event.PullMessagesResponse, error) {
 	type Envelope struct {
 		Header struct{}
 		Body   struct {
@@ -21,7 +21,7 @@ func Call_PullMessages(ctx context.Context, dev *onvif.Device, request event.Pul
 		}
 	}
 	var reply Envelope
-	if httpReply, err := dev.CallMethod(request); err != nil {
+	if httpReply, err := dev.CallMethodWithWsaTo(request, subscriptionReference); err != nil {
 		return reply.Body.PullMessagesResponse, errors.Annotate(err, "call")
 	} else {
 		err = sdk.ReadAndParse(ctx, httpReply, &reply, "PullMessages")
